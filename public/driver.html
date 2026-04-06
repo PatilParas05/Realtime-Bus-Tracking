@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BusTrack - Driver</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="css/shared.css"/>
+    <style>
+        body { overflow-x: hidden; }
+        body::before {
+            content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+            background-image: linear-gradient(rgba(0,230,118,.025) 1px,transparent 1px),
+            linear-gradient(90deg,rgba(0,230,118,.025)1px,transparent 1px);
+            background-size: 44px 44px;
+        }
+        .page { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+        /* ── Content ── */
+        .content { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 28px 16px 50px; }
+
+        /* ── GPS ring ── */
+        .ring-wrap { position: relative; width: 210px; height: 210px; margin: 8px auto 26px; }
+        .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .ring-track { fill: none; stroke: var(--card2); stroke-width: 10; }
+        .ring-prog  { fill: none; stroke: var(--green); stroke-width: 10; stroke-linecap: round;
+                      stroke-dasharray: 597; stroke-dashoffset: 597; transition: stroke-dashoffset .7s ease, stroke .3s; }
+        .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+        .ring-emoji  { font-size: 38px; }
+        .ring-status { font-family: var(--font-head); font-size: 15px; font-weight: 800; letter-spacing: .5px; }
+        .ring-sub    { font-size: 11px; color: var(--muted); }
+
+        /* ── Stats grid ── */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 420px; margin-bottom: 12px; }
+        .stat-card { padding: 14px 13px; }
+        .stat-card .stat-value { font-size: 20px; }
+
+        /* ── Coord card ── */
+        .coord-card { width: 100%; max-width: 420px; margin-bottom: 14px; }
+        .coord-card .card-body { padding: 10px 14px; }
+
+        /* ── Passengers online ── */
+        .pax-bar {
+            width: 100%; max-width: 420px;
+            background: rgba(0,229,255,.06);
+            border: 1px solid rgba(0,229,255,.15);
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex; align-items: center; gap: 10px;
+            font-size: 13px; color: var(--muted);
+            margin-bottom: 14px;
+        }
+        .pax-bar i { color: var(--cyan); }
+        .pax-count { font-family: var(--font-head); font-size: 18px; font-weight: 800; color: var(--cyan); margin-left: auto; }
+
+        /* ── Main CTA ── */
+        .cta-wrap { width: 100%; max-width: 420px; margin-bottom: 14px; }
+        .cta-wrap .btn { width: 100%; justify-content: center; padding: 18px; font-size: 16px; }
+
+        /* ── Broadcast bar ── */
+        .bcast-bar {
+            width: 100%; max-width: 420px;
+            background: var(--card2); border: 1px solid rgba(0,230,118,.2);
+            border-radius: 10px; padding: 10px 14px;
+            display: flex; align-items: center; gap: 10px;
+            font-size: 12px; color: var(--muted);
+            opacity: 0; transition: opacity .4s;
+        }
+        .bcast-bar.on { opacity: 1; }
+        .bcast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: blink .9s infinite; }
+        @keyframes blink { 0%,100%{opacity:1}50%{opacity:.15} }
+        .bcast-fixes { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--green); }
+
+        /* ── Log ── */
+        .log-wrap { width: 100%; max-width: 420px; margin-top: 14px; }
+        .log-body { padding: 10px 12px; max-height: 150px; overflow-y: auto; }
+        .log-line { font-family: var(--font-mono); font-size: 11px; color: var(--muted); padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,.03); }
+        .log-line .ts   { color: rgba(255,255,255,.2); margin-right: 6px; }
+        .log-line.fresh { color: var(--green); animation: fadeIn .4s ease; }
+
+        /* ── WS status bar ── */
+        .ws-bar { width: 100%; max-width: 420px; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+
+        /* acc quality */
+        .q-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 2px 8px; border-radius: 20px; border: 1px solid; }
+        .q-good  { color: var(--green); border-color: rgba(0,230,118,.3); background: rgba(0,230,118,.07); }
+        .q-ok    { color: var(--orange);border-color: rgba(255,145,0,.3);  background: rgba(255,145,0,.07); }
+        .q-poor  { color: var(--red);   border-color: rgba(255,82,82,.3);  background: rgba(255,82,82,.07); }   
+
+        .demo-hint { width: 100%; max-width: 420px; margin-top: 16px; background: rgba(0,229,255,.04); border: 1px dashed rgba(0,229,255,.18); border-radius: 10px; padding: 12px 14px; font-size: 12px; color: var(--muted); line-height: 1.7; }
+        .demo-hint strong { color: rgba(0,229,255,.8); }
+        
+        </style>
+</head>
+<body>
+    <div class="page">
+        <nav class="navbar">
+            <a href="/" class="nav-logo">
+                <div class="nav-logo-icon">🚌</div>
+                <div><div class="nav-logo-name">BusTrack</div><div class="nav-logo-role">Driver App</div></div>
+            </a>
+            <div class="nav-spacer"></div>
+            <div class="nav-links">
+                <a href="/passenger" class="nav-link" target="_blank"><i class="fa-solid fa-map"></i> Passenger View</a>
+            </div>
+            <div class="ws-badge offline" id="wsBadge"><span class="dot"></span><span id="wsText">Connecting…</span></div>
+            <div class="nav-time" id="navTime">--:--:--</div>
+        </nav>
+        <div class="content">
+            <div class="ring-wrap">
+                <svg viewBox="0 0 200 200">
+                    <circle class="ring-track" cx="100" cy="100" r="95"/>
+                    <circle class="ring-prog" cx="100" cy="100" r="95" id="ringProg"/>
+                </svg>
+                <div class="ring-center">
+                    <div class="ring-emoji" id="ringEmoji">📡</div>
+                    <div class="ring-status" id="ringStatus" style="color:var(--muted)">OFFLINE</div>
+                    <div class="ring-sub" id="ringSub">Press start to begin</div>
+                </div>
+            </div>
+            <!-- WS status -->
+            <div class="ws-bar">
+                <span style="font-size:12px;color:var(--muted)">Server:</span>
+                <div class="ws-badge connecting" id="serverBadge"><span class="dot"></span><span id="serverText">Connecting…</span></div>
+            </div>
+            <!-- Passengers watching -->
+            <div class="pax-bar">
+                <i class="fa-solid fa-users"></i>
+                <span>Passengers watching live</span>
+                <div class="pax-count" id="paxCount">0</div>
+            </div>
+            <!-- Stats grid -->
+            <div class="stats-grid">
+                <div class="card stat-card"><div class="stat-label">Speed</div><div class="stat-value" id="spdVal">—</div><div class="stat-unit">km/h</div></div>
+                <div class="card stat-card"><div class="stat-label">Accuracy</div><div class="stat-value" id="accVal">—</div><div class="stat-unit">m</div></div>
+                <div class="card stat-card"><div class="stat-label">Heading</div><div class="stat-value" id="hdgVal">—</div><div class="stat-unit">°</div></div>
+                <div class="card stat-card"><div class="stat-label">Fixes Sent</div><div class="stat-value" id="fixVal" style="color:var(--green)">0</div></div>
+            </div>
+            <!-- Coordinates -->
+            <div class="card coord-card">
+                <div class="card-header"><i class="fa-solid fa-location-dot"></i>Live GPS Coordinates</div>
+                <div class="card-body">
+                    <div class="coord-row"><span class="coord-key">Latitude</span> <span class="coord-val" id="cLat">Waiting for fix…</span></div>
+                    <div class="coord-row"><span class="coord-key">Longitude</span> <span class="coord-val" id="cLng">—</span></div>
+                    <div class="coord-row"><span class="coord-key">Altitude</span> <span class="coord-val" id="cAlt">—</span></div>
+                </div>
+            </div>
+            <!-- CTA button -->
+            <div class="cta-wrap">
+                <button class="btn btn-green" id="mainBtn" onclick="toggleTracking()">
+                    <i class="fa-solid fa-satellite-dish" id="btnIcon"></i>
+                    <span id="btnText">START GPS TRACKING</span>
+                </button>
+            </div>
+            <!-- Broadcast bar -->
+            <div class="bcast-bar" id="bcastBar">
+                <span class="bcast-dot"></span>
+                Broadcasting GPS → Server → Passengers
+                <span class="bcast-fixes" id="bcastFixes">0 fixes</span>
+            </div>
+            <!-- Log -->
+            <div class="card log-wrap">
+                <div class="card-header"><i class="fa-solid fa-terminal"></i>Activity Log</div>
+                <div class="log-body" id="logBody"></div>
+            </div>
+            <div class="demo-hint">
+                <strong>Demo tip:</strong> Open <strong>/passenger</strong> on another device or tab on the same WiFi network, then press Start here. Your real GPS streams to the server and passengers see it live on the map.
+            </div>
+            <div class="toast" id="toast"></div>
+        </div>
+        <script>
+            // ── State ────────────────────────────────────────────────
+       
+        </script>
+    </div>
+</body>
+</html>
