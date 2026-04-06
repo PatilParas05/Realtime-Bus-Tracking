@@ -90,11 +90,12 @@
 
         .demo-hint { width: 100%; max-width: 420px; margin-top: 16px; background: rgba(0,229,255,.04); border: 1px dashed rgba(0,229,255,.18); border-radius: 10px; padding: 12px 14px; font-size: 12px; color: var(--muted); line-height: 1.7; }
         .demo-hint strong { color: rgba(0,229,255,.8); }
-        
+
         </style>
 </head>
 <body>
     <div class="page">
+        <!-- Nav -->
         <nav class="navbar">
             <a href="/" class="nav-logo">
                 <div class="nav-logo-icon">🚌</div>
@@ -108,6 +109,7 @@
             <div class="nav-time" id="navTime">--:--:--</div>
         </nav>
         <div class="content">
+            <!-- GPS Ring -->
             <div class="ring-wrap">
                 <svg viewBox="0 0 200 200">
                     <circle class="ring-track" cx="100" cy="100" r="95"/>
@@ -144,6 +146,11 @@
                     <div class="coord-row"><span class="coord-key">Latitude</span> <span class="coord-val" id="cLat">Waiting for fix…</span></div>
                     <div class="coord-row"><span class="coord-key">Longitude</span> <span class="coord-val" id="cLng">—</span></div>
                     <div class="coord-row"><span class="coord-key">Altitude</span> <span class="coord-val" id="cAlt">—</span></div>
+                    <div class="coord-row"><span class="coord-key">Last Fix</span> <span class="coord-val" id="cTime">—</span></div>
+                    <div class="coord-row" style="border:none">
+                        <span class="coord-key">GPS Quality</span>
+                        <span id="cQuality">—</span>
+                    </div>
                 </div>
             </div>
             <!-- CTA button -->

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BusTrack — Passenger View</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="css/shared.css"/>
+</head>
+<body>
+    <div class="page">
+        <!-- Nav -->
+        <nav class="navbar">
+            <a href="/" class="nav-logo">
+                <div class="nav-logo-icon">🗺️</div>
+                <div><div class="nav-logo-name">BusTrack</div><div class="nav-logo-role">Passenger View</div></div>
+            </a>
+            <div class="nav-spacer"></div>
+            <div class="nav-links">
+                <a href="/driver" class="nav-link" target="_blank"><i class="fa-solid fa-satellite-dish"></i> Driver App</a>
+            </div>
+            <div class="ws-badge connecting" id="wsBadge"><span class="dot"></span><span id="wsText">Connecting…</span></div>
+            <div class="nav-time" id="navTime">--:--:--</div>   
+        </nav>
+        <!-- Map container -->
+        <div style="position:relative;flex:1;overflow:hidden">
+            <div id="map" style="height:100%;width:100%"></div>
+        </div>
+        <!-- Waiting overlay -->
+        <div class="overlay" id="overlay">
+            <div class="ov-bus">🚌</div>
+            <div class="ov-title">Waiting for Bus GPS…</div>
+            <div class="ov-sub">Open the Driver App and start GPS tracking — the bus will appear here live.</div>
+            <div class="ov-steps">
+                <div class="ov-step"><span class="ov-num">1</span>Open Driver App on your phone</div>
+                <div class="ov-step"><span class="ov-num">2</span>Press "Start GPS Tracking"</div>
+                <div class="ov-step"><span class="ov-num">3</span>Allow location permission</div>
+                <div class="ov-step"><span class="ov-num">4</span>Bus appears on this map ✅</div>
+            </div>
+            <a href="/driver" target="_blank" class="driver-btn">
+                <i class="fa-solid fa-satellite-dish"></i> Open Driver App
+            </a>
+        </div>
+        <!-- Live side panel -->
+         <div class="side" id="side" style="display:none">
+            <div class="card fade-in">
+                <div class="card-header"><i class="fa-solid fa-bus"></i> Live Bus Data</div>
+                <div class="info-grid">
+                    <div class="stat-item"><div class="stat-label">Speed</div>    <div class="stat-value" id="iSpd">—</div><div class="stat-unit">km/h</div></div>
+                    <div class="stat-item"><div class="stat-label">Accuracy</div> <div class="stat-value" id="iAcc">—</div><div class="stat-unit">m</div></div>
+                    <div class="stat-item"><div class="stat-label">Heading</div>  <div class="stat-value" id="iHdg">—</div><div class="stat-unit">°</div></div>
+                    <div class="stat-item"><div class="stat-label">GPS Fixes</div><div class="stat-value" id="iFix" style="color:var(--green)">0</div></div>
+                </div>
+            </div>
+            <div class="card fade-in" style="animation-delay:.08s">
+                <div class="card-header"><i class="fa-solid fa-location-dot"></i> GPS Coordinates</div>
+                <div class="coord-body">
+                    <div class="coord-row"><span class="coord-key">Latitude</span>  <span class="coord-val" id="cLat">—</span></div>
+                    <div class="coord-row"><span class="coord-key">Longitude</span> <span class="coord-val" id="cLng">—</span></div>
+                    <div class="coord-row"><span class="coord-key">Altitude</span>  <span class="coord-val" id="cAlt">—</span></div>
+                    <div class="coord-row" style="border:none"><span class="coord-key">Updated</span><span class="coord-val" id="cTime">—</span></div>
+                </div>
+            </div>
+            <div class="card fade-in" style="animation-delay:.16s">
+                <div class="card-header"><i class="fa-solid fa-road"></i> Journey</div>
+                <div class="trail-row">
+                    <div class="tr-item"><div class="tr-num" id="jDist">0</div><div class="tr-lbl">Metres</div></div>
+                    <div class="tr-item"><div class="tr-num" id="jPts">0</div><div class="tr-lbl">Points</div></div>
+                    <div class="tr-item"><div class="tr-num" id="jTime">0</div><div class="tr-lbl">Seconds</div></div>
+                </div>
+            </div>
+            </div>
+            <div class="botbar" id="botbar"></div>
+                <span class="bot-label">Map</span>
+                <button class="bot-btn on" id="btnFollow" onclick="setFollow(true)">Follow Bus</button>
+                <button class="bot-btn"   id="btnFree"   onclick="setFollow(false)">Free</button>
+                <span class="sep"></span>
+                <button class="bot-btn on" id="btnTrail" onclick="toggleTrail()"><i class="fa-solid fa-route"></i> Trail</button>
+                <button class="bot-btn on" id="btnAcc"   onclick="toggleAcc()"><i class="fa-solid fa-circle-dot"></i> Accuracy</button>
+            </div>
+        </div>
+    </div>
+    
+</body>
+</html>
