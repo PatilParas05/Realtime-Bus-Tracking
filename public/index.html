@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/shared.css"/>
+    <title>BusTrack - Real-Time Bus Tracking System</title>
+<style>
+    body {overflow-x: hidden;}
+    body::before {
+        content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+        background: radial-gradient(ellipse 90% 50% at 50% -10%, rgba(0,229,255,.08), transparent),
+                    radial-gradient(ellipse 60% 60% at 85% 90%, rgba(68,138,255,.05), transparent);
+    }
+    .page {position: relative; z-index: 1;}
+</style>
+</head>
+<body>
+    <!-- Nav -->
+    <div class="page">
+        <nav class="navbar">
+            <a href="/" class="nav-logo">
+                <div class="nav-logo-icon">🚌</div>
+                <div><div class="nav-logo-name">BusTrack</div><div class="nav-logo-role">Real-Time GPS</div></div>
+            </a>
+            <div class="nav-spacer"></div>
+            <div class="nav-links">
+                <a href="/driver" class="nav-link" target="_blank"><i class="fa-solid fa-satellite-dish"></i> Driver App</a>
+                <a href="/passenger" class="nav-link" target="_blank"><i class="fa-solid fa-map"></i> Passenger View</a>
+            </div>
+            <div class="ws-badge connected" id="srvBadge"><span class="dot"></span><span>Server Online</span></div>
+        </nav>
+        <!-- Hero -->
+        <div class="hero">
+            <h1 class="hero-h1">Real-Time<br><span>Bus Tracking System</span></h1>
+            <p class="hero-p">Driver's phone GPS → Node.js WebSocket Server → Passengers see the bus move live on a real map. No third-party tracking service. Built from scratch.</p>
+            <div class="hero-cta">
+                <a href="/driver" class="btn btn-primary" target="_blank">Driver App</a>
+                <a href="/passenger" class="btn btn-secondary" target="_blank">Passenger View</a>
+            </div>
+            <div class="server-row">
+                <i class="fa-solid fa-server" style="color:var(--green)"></i>
+                Node.js server running on port 3000 &nbsp;·&nbsp; WebSocket ready &nbsp;·&nbsp; REST API active
+            </div>
+            </div>
+            <div class="divider"></div>
+            <!-- Architecture -->
+            <div class="section">
+                <div class="sec-label">System Architecture</div>
+                <div class="sec-title">How the Data Flows</div>
+                <p class="sec-sub">From hardware GPS chip to passenger screen in under 1 second</p>
+                <div class="flow">
+                    <div class="fstep">
+                        <div class="fstep-ico">📱</div>
+                        <div class="fstep-name">Driver Phone</div>
+                        <div class="fstep-desc">Browser Geolocation API reads hardware GPS every second</div>
+                    </div>
+                    <div class="fstep">
+                        <div class="fstep-ico">🌐</div>
+                        <div class="fstep-name">WebSocket Server</div>
+                        <div class="fstep-desc">Node.js server broadcasts every 3s via WebSocket</div>
+                    </div>
+                    <div class="fstep">
+                        <div class="fstep-ico">📱</div>
+                        <div class="fstep-name">Passenger Phone</div>
+                        <div class="fstep-desc">Leaflet.js renders live map with GPS data</div>
+                    </div>
+                </div>
+            </div>
+            <footer>
+                <strong>Real-Time Bus Tracking System</strong><br>
+                <span style="margin-top:6px;display:block">Node.js · Express · WebSocket · Leaflet.js · Geolocation API · OpenStreetMap</span>
+      </footer>
+    </div>
+  </div>
+</body>
+
+</html>
