@@ -2,6 +2,9 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const { connected } = require('process');
+const { type } = require('os');
+const { timeStamp } = require('console');
 
 const app = express();
 const server = http.createServer(app);
@@ -40,7 +43,85 @@ app.get('/api/trail',(req,res)=>{
 
 //websocket handler
 wss.on('conection',(ws,req)=>{
+    //read role from query param:?role=driver or ?role=passenger
     const url=new URL(req.url,'http://localhost:${PORT}');
     const role=url.searchParams.get('role') || 'passenger';
     const busId=url.searchParams.get('busId') || 'BUS-001';
-})
+
+    ws.role=role;
+    ws.busId=busId;
+    ws.isAlive=true;
+
+    console.log('[WS] ${role.toUpperCase()} connected (total clients: ${wss.clients.size})');
+
+    if(role==='driver'){
+        driverConnected=true;
+        sessionStart=sessionStart || new Date().toISOString();
+        fixHistory.length=0; //fresh trail for new session
+        fixCount=0;
+
+        //tell driver their connection is confirmed
+        safeSend(ws,{type:'driver_ack',message:'connected to server. GPS broadcast active.',busId});
+
+        //tell all passengers driver come online
+        borascast({type:'driver_online',busId},'passenger');
+        updatePassengerCount();
+    }
+    if(roll === 'passenger'){
+        passengerCount = CountRole('passenger');
+
+        //send lartest know fix immediately so map isnt blank
+        if(latestFix){
+            safeSend(ws,{type:'location',...lartestFix,trail:fixHistory.slice(-50)});
+        }
+        safeSend(ws,{
+            type:'server_info',
+            driverConnected,
+            passengerCount,
+            fixCount
+        });
+
+        //tell driver passenger count updated
+        broadcastToDrivers({type:'passenger_count',count:CountRole('passenger')+1});
+    }
+
+//message handler
+ws.on('message',(raw)=>{
+    let msg;
+    try{msg = JSON.parse(raw);}catch{return;}
+
+    if(ws.role === 'driver' && msg.type === 'location'){
+        //core driver send GPS fix
+        fixCount++;
+        latestFix={
+            lat:msg.lat,
+            lng:msg.lng,
+            speed:msg.speed,
+            heading:msg.heading,
+            accuracy:msg.accuracy,
+            altitude:msg.altitude,
+            timeStamp:msg.timeStamp || Date.now(),
+            fixCount,
+            busId:ws.busId
+        };
+        //state in trail(keep last 500)
+        fixHistory.push({lat:msg.lat,lng:msg.lng,t:Date.now()});
+        if(fixHistory.length>500)fixHistory.shift();
+
+        //broadcast to all passegers
+        const payload = {type:'location',...latestFix};
+        broadcast(payload,'passenger');
+
+        //ack back to driver
+        safeSend(ws,{type:'ack',fixCount,passengers:CountRole('passenger')});
+
+        if(fixCount %10 ===0){
+            console.log(`[GPS Fix #${fixCount} lat:${msg.lat.toFixed(5)} lng:${msg.lng.toFixed(5)} passengers:${countRole('passengers')}]`);
+        }
+    }
+    if(msg.type === 'ping'){
+        safeSend(ws,{type:'pong',ts:Date.now()});
+    }
+});
+
+});
