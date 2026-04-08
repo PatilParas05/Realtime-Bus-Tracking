@@ -8,6 +8,106 @@
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
     <link rel="stylesheet" href="css/shared.css"/>
+    <style>
+        html, body { height: 100%; overflow: hidden; }
+        .page      { height: 100vh; display: flex; flex-direction: column; }
+
+        /* ── Map ── */
+        #map { flex: 1; }
+        
+        /* ── Side panel ── */
+        .side {
+            position: absolute;
+            top: 62px; left: 14px;
+            width: 258px;
+            display: flex; flex-direction: column; gap: 9px;
+            z-index: 500;
+        }
+
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 12px; }
+        .info-grid .stat-value { font-size: 17px; }
+
+        .coord-body { padding: 9px 13px; }
+
+        .trail-row { display: flex; gap: 10px; padding: 10px 13px; }
+        .tr-item   { flex: 1; text-align: center; }
+        .tr-num    { font-family: var(--font-head); font-size: 18px; font-weight: 800; color: var(--cyan); }
+        .tr-lbl    { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+
+        /* ── Waiting overlay ── */
+        .overlay {
+            position: absolute; inset: 0; z-index: 400;
+            background: rgba(7,9,15,.88);
+            backdrop-filter: blur(8px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 16px; padding: 20px;
+            transition: opacity .5s;
+        }
+        .overlay.gone { opacity: 0; pointer-events: none; }
+        .ov-bus  { font-size: 60px; animation: bounce 2.5s ease-in-out infinite; }
+        @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+        .ov-title { font-family: var(--font-head); font-size: 18px; font-weight: 800; color: var(--cyan);
+             margin-bottom: 8px; }
+        .ov-sub   { font-size: 14px; color: var(--muted); text-align: center; margin-bottom: 16px; }
+        .ov-steps { display: flex; flex-direction: column; gap: 8px; text-align: center; }
+        .ov-step  { display: flex; align-items: center; gap: 11px;
+             background: var(--card); border: 1px solid var(--border); border-radius: 10px; 
+             padding: 11px 13px; font-size: 13px; color: var(--muted); 
+            }
+        .ov-num   { width: 26px; height: 26px; border-radius: 50%; 
+            background: linear-gradient(135deg,var(--cyan),var(--blue)); display: flex; 
+            align-items: center; justify-content: center; font-family: var(--font-head); 
+            font-size: 12px; font-weight: 800; color: #000; flex-shrink: 0; 
+        }
+        .driver-btn { display: flex; align-items: center; gap: 8px; 
+            background: linear-gradient(135deg,var(--cyan),var(--blue)); 
+            color: #000; font-weight: 800; font-family: var(--font-head); 
+            font-size: 14px; padding: 13px 26px; border-radius: var(--r); 
+            text-decoration: none; box-shadow: 0 6px 24px rgba(0,229,255,.3); transition: all .2s; 
+        }
+        .driver-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 36px rgba(0,229,255,.45); }
+
+        /* ── Bottom bar ── */
+        .botbar { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); 
+            display: flex; align-items: center; gap: 8px; background: rgba(7,9,15,.92); 
+            backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 40px; 
+            padding: 8px 16px; z-index: 500;
+         }
+        .bot-label { font-size: 10px; color: var(--muted); font-family: var(--font-head); 
+            font-weight: 700; text-transform: uppercase; letter-spacing: .5px; 
+        }
+        .bot-btn { background: var(--card2); border: 1px solid var(--border); 
+            color: var(--muted); border-radius: 20px; padding: 5px 12px; 
+            font-size: 12px; cursor: pointer; transition: all .2s; font-family: var(--font-head); font-weight: 600;
+         }
+        .bot-btn.on, .bot-btn:hover { background: var(--cyan); color: #000; border-color: var(--cyan); }
+        .sep { width: 1px; height: 18px; background: var(--border); }
+
+        /* ── Bus marker ── */
+        .bm { position: relative; width: 54px; height: 54px; display: flex; 
+            align-items: center; justify-content: center;
+         }
+        .bm-r1, .bm-r2 { position: absolute; border-radius: 50%; 
+            border: 2px solid var(--cyan); animation: ring-out 2s ease-out infinite; 
+        }
+        .bm-r1 { inset:-4px; animation-delay:0s; }
+        .bm-r2 { inset:-11px; animation-delay:.6s; }
+        @keyframes ring-out { 0%{opacity:.9;transform:scale(.6)} 100%{opacity:0;transform:scale(1.3)} }
+        .bm-body { width: 40px; height: 40px; border-radius: 50%; 
+            background: linear-gradient(135deg,var(--cyan),var(--blue)); 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 19px; box-shadow: 0 4px 18px rgba(0,229,255,.5); z-index: 2; position: relative; 
+        }
+        .bm-arr { position: absolute; top: 0; left: 50%; transform: translateX(-50%); 
+            width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; 
+            border-bottom: 13px solid var(--cyan); transform-origin: 50% 27px; z-index: 3; 
+        }
+        .bm-label { position: absolute; bottom: -17px; left: 50%; 
+            transform: translateX(-50%); white-space: nowrap; font-family: var(--font-head); 
+            font-size: 10px; font-weight: 700; color: #fff; background: rgba(0,229,255,.18); 
+            border: 1px solid rgba(0,229,255,.3); padding: 1px 7px; border-radius: 4px; 
+        }
+    </style>
 </head>
 <body>
     <div class="page">
@@ -82,6 +182,27 @@
             </div>
         </div>
     </div>
-    
+    <div class="toast" id="toast"></div>
+    <script>
+     // ── Map
+    const map = L.map('map',{center:[18.5204,73.8567],zoom:14,zoomControl:false});
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        { attribution: '© OSM © CartoDB', maxZoom: 19 }).addTo(map);
+// ── State
+let busMarker  = null, accCircle = null, trailLine = null;
+let trailPts   = [], totalDist = 0, lastLL = null;
+let startTime  = null, ticker = null;
+let following  = true, showTrail = true, showAcc = true;
+
+// ── Load existing state (for page reload)
+fetch('/api/status').then(r=>r.json()).then(s=>{
+    if(s.driverConnected && s.latestFix){
+        const f=s.latestFix;
+        document.getElementById('overlay').classList.add('gone');
+        document.getElementById('side').style.display='flex';
+    }
+})
+</script>
 </body>
 </html>
