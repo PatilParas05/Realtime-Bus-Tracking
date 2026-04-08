@@ -32,3 +32,15 @@ app.get('/api/status', (req, res) => {
         trail: fixHistory.slice(-50) //last 50 points
     });
 });
+
+//get full trail
+app.get('/api/trail',(req,res)=>{
+    res.json({trail:fixHistory});
+});
+
+//websocket handler
+wss.on('conection',(ws,req)=>{
+    const url=new URL(req.url,'http://localhost:${PORT}');
+    const role=url.searchParams.get('role') || 'passenger';
+    const busId=url.searchParams.get('busId') || 'BUS-001';
+})
