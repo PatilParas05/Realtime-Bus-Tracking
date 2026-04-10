@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const path = require('path');
 const { connected } = require('process');
 const { type } = require('os');
-const { timeStamp } = require('console');
+const { timeStamp, count } = require('console');
 
 const app = express();
 const server = http.createServer(app);
@@ -123,5 +123,19 @@ ws.on('message',(raw)=>{
         safeSend(ws,{type:'pong',ts:Date.now()});
     }
 });
+    //disconnect
+    ws.on('close',()=>{
+        console.log(`[WS] ${ws.role.toUpperCase()}disconnected`);
+        if(ws.role === 'driver'){
+            driverConnected= false
+            broadcast({type:'driver_offline'},'passenger');
+        }
+        if(ws.role === 'passenger'){
+            broadcastToDrivers({type:'passenger_count',count:countRole('passenger')});
+        }
+    });
+    ws.on('error',(err)=>console.error('[WS Error]',err.message));
 
+    //heatbeat pong
+    ws.on('pong',()=>{ws.isAlive=true;});
 });
