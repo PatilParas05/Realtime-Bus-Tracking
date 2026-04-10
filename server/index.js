@@ -180,21 +180,22 @@ function updatePassengerCount(){
 
 //clean URL routes
 app.get('/driver',(req,res)=> res.sendFile(path.join(__dirname,'../public/driver.html')));
-app.get('/passenger',(req,res)=> res.sendFile(path.join(__dirname,'../pblic/passenger.html')));
+app.get('/passenger',(req,res)=> res.sendFile(path.join(__dirname,'../public/passenger.html')));
 
 // 404 fallback -> index.html
-app.get('*',(req,res)=>{
+app.use((req,res)=>{
     res.sendFile(path.join(__dirname,'../public/index.html'));
 });
 
-//start
-server.listen(PORT,()=>{
-    console.log('\n------------------------------------------------');
-    console.log('          BusTrack GPS Tracking Server            ');
-    console.log('\n------------------------------------------------');
-    console.log(`  Web UI  →  http://localhost:${PORT}             `);
-    console.log(`  Driver  →  http://localhost:${PORT}/driver      `);
-    console.log(`  Passenger→ http://localhost:${PORT}/passenger   `);
-    console.log(`  API     →  http://localhost:${PORT}/api/status  `);
-    console.log('\n------------------------------------------------');
-})
+function startServer(port) {
+    server.listen(port,()=>{
+        console.log('\n------------------------------------------------');
+        console.log('          BusTrack GPS Tracking Server            ');
+        console.log('\n------------------------------------------------');
+        console.log(`  Web UI  →  http://localhost:${port}             `);
+        console.log(`  Driver  →  http://localhost:${port}/driver      `);
+        console.log(`  Passenger→ http://localhost:${port}/passenger   `);
+        console.log(`  API     →  http://localhost:${port}/api/status  `);
+        console.log('\n------------------------------------------------');
+    });
+}
