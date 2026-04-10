@@ -139,3 +139,62 @@ ws.on('message',(raw)=>{
     //heatbeat pong
     ws.on('pong',()=>{ws.isAlive=true;});
 });
+
+//heatbeat drop dead connections every 30s
+setInterval(()=>{
+    wss.clients.forEach(ws=>{
+        if(!ws.isAlive){ws.terminate();return;}
+        ws.isAlive=false;
+        ws.ping();
+    });
+},30000);
+
+//helper
+function safeSend(ws,data){
+    if(ws.readyState === WebSocket.OPEN){
+        ws.send(JSON.stringify(data));
+    }
+}
+
+function broadcast(data,toRole){
+    wss.clients.forEach(ws=>{
+        if(!toRole || ws.role === toRole)safeSend(ws,data);
+    });
+}
+
+function broadcastToDrivers(data){
+    broadcast(data,'driver');
+}
+
+function countRole(role){
+    let n = 0;
+    wss.clients.forEach(ws=>{
+        if(ws.role === role)n++;
+    });
+    return n;
+}
+
+function updatePassengerCount(){
+    broadcastToDrivers({type:'passenger_count',count:countRole('passenger')});
+}
+
+//clean URL routes
+app.get('/driver',(req,res)=> res.sendFile(path.join(__dirname,'../public/driver.html')));
+app.get('/passenger',(req,res)=> res.sendFile(path.join(__dirname,'../pblic/passenger.html')));
+
+// 404 fallback -> index.html
+app.get('*',(req,res)=>{
+    res.sendFile(path.join(__dirname,'../public/index.html'));
+});
+
+//start
+server.listen(PORT,()=>{
+    console.log('\n------------------------------------------------');
+    console.log('          BusTrack GPS Tracking Server            ');
+    console.log('\n------------------------------------------------');
+    console.log(`  Web UI  →  http://localhost:${PORT}             `);
+    console.log(`  Driver  →  http://localhost:${PORT}/driver      `);
+    console.log(`  Passenger→ http://localhost:${PORT}/passenger   `);
+    console.log(`  API     →  http://localhost:${PORT}/api/status  `);
+    console.log('\n------------------------------------------------');
+})
