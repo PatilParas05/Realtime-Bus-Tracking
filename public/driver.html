@@ -176,6 +176,7 @@
             </div>
             <div class="toast" id="toast"></div>
         </div>
+        <script src="public/js/ws-client.js"></script>
         <script>
             // ── State 
             let watchId =null;
@@ -184,6 +185,37 @@
             let ws =null;
             let serverConn=false;
 
+            //websocket to sever
+            function connectWS(){
+                ws = new BusTrackWS({
+                    role: 'driver',
+                    busId: 'BUS-001',
+                    onOpen(){
+                        serverConn = true;
+                        setBadge('serverBadge','serverText','connected','SERVER CONNECTED');
+                        log('Connected to BusTrack server');
+                    },
+                    onClose(){
+                        serverConn= false;
+                        setBadge('serverBadge','serverText','offline','Reconnecting...');
+                        log('Server connection lost -- reconnectng...')
+                    },
+                    onmessage(data){
+                        if(data.type ==='ack'){
+                            fixesSent = data.fixCount;
+                            document.getElementById('fixVal').textContent = fixesSent;
+                            document.getElementById("bcastFixes").textContent = fixesSent + 'fixes';
+                            document.getElementById('paxCount').textContent = data.passengers;
+                        }
+                        if(data.type === 'passenger_count'){
+                            document.getElementById('paxCount').textContent = data.count;
+                        }
+                        if(data.tyoe === 'driver_ack'){
+                            log('📡 ' + data.message)
+                        }
+                    }
+                });
+            }
             
        
         </script>
