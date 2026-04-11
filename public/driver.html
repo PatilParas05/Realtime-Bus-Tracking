@@ -174,9 +174,9 @@
             <div class="demo-hint">
                 <strong>Demo tip:</strong> Open <strong>/passenger</strong> on another device or tab on the same WiFi network, then press Start here. Your real GPS streams to the server and passengers see it live on the map.
             </div>
-            <div class="toast" id="toast"></div>
         </div>
-        <script src="public/js/ws-client.js"></script>
+        <div class="toast" id="toast"></div>
+        <script src="/js/ws-client.js"></script>
         <script>
             // ── State 
             let watchId =null;
@@ -200,30 +200,30 @@
                         setBadge('serverBadge','serverText','offline','Reconnecting...');
                         log('Server connection lost -- reconnectng...')
                     },
-                    onmessage(data){
+                    onMessage(data){
                         if(data.type ==='ack'){
                             fixesSent = data.fixCount;
                             document.getElementById('fixVal').textContent = fixesSent;
-                            document.getElementById("bcastFixes").textContent = fixesSent + 'fixes';
+                            document.getElementById("bcastFixes").textContent = fixesSent + ' fixes';
                             document.getElementById('paxCount').textContent = data.passengers;
                         }
                         if(data.type === 'passenger_count'){
                             document.getElementById('paxCount').textContent = data.count;
                         }
-                        if(data.tyoe === 'driver_ack'){
-                            log('📡 ' + data.message)
+                        if(data.type === 'driver_ack'){
+                            log('📡 ' + data.message);
                         }
                     }
                 });
             }
             // GPS tracking
             function toggleTracking(){
-                tracking ? stopTracking():StartTracking();
+                tracking ? stopTracking() : startTracking();
             }
             function startTracking(){
                 if(!navigator.geolocation){showToast('Geolocation not supported','error');return;}
 
-                documnet.getElementById('mainBtn').disabled=true;
+                document.getElementById('mainBtn').disabled=true;
                 setRing('🔍', '#ffab40', 'ACQUIRING…', 'Waiting for GPS fix');
                 log('Requesting GPS permission from browser…');
 
@@ -241,7 +241,7 @@
                 document.getElementById('btnText').textContent = 'START GPS TRACKING';
                 document.getElementById('mainBtn').disabled = false;
                 document.getElementById('bcastBar').classList.remove('on');
-                etRing('📡', 'var(--muted)', 'OFFLINE', 'Tracking stopped');
+                setRing('📡', 'var(--muted)', 'OFFLINE', 'Tracking stopped');
                 if (ws) ws.send({ type: 'driver_stop' });
                 log('Tracking stopped.');
             }
@@ -318,8 +318,12 @@
             function log(msg){
                 const body = document.getElementById('logBody');
                 const div  = document.createElement('div');
-                div.className = 'log-line-fresh';
-                div.innerText =  `<span class="ts">${new Date().toLocaleTimeString()}</span>${msg}`;
+                div.className = 'log-line fresh';
+                const ts = document.createElement('span');
+                ts.className = 'ts';
+                ts.textContent = new Date().toLocaleTimeString() + ' ';
+                div.appendChild(ts);
+                div.appendChild(document.createTextNode(msg));
                 body.insertBefore(div,body.firstChild);
                 setTimeout(() => div.classList.remove('fresh'), 2000);
                 while (body.children.length > 25) body.removeChild(body.lastChild);
