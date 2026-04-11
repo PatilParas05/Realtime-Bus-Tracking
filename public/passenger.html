@@ -172,7 +172,7 @@
                 </div>
             </div>
             </div>
-            <div class="botbar" id="botbar"></div>
+            <div class="botbar" id="botbar">
                 <span class="bot-label">Map</span>
                 <button class="bot-btn on" id="btnFollow" onclick="setFollow(true)">Follow Bus</button>
                 <button class="bot-btn"   id="btnFree"   onclick="setFollow(false)">Free</button>
@@ -180,20 +180,88 @@
                 <button class="bot-btn on" id="btnTrail" onclick="toggleTrail()"><i class="fa-solid fa-route"></i> Trail</button>
                 <button class="bot-btn on" id="btnAcc"   onclick="toggleAcc()"><i class="fa-solid fa-circle-dot"></i> Accuracy</button>
             </div>
-        </div>
     </div>
     <div class="toast" id="toast"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/js/ws-client.js"></script>
     <script>
      // ── Map
     const map = L.map('map',{center:[18.5204,73.8567],zoom:14,zoomControl:false});
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        { attribution: '© OSM © CartoDB', maxZoom: 19 }).addTo(map);
+        { attribution: '© OSM © CartoDB · Routes <a href="https://project-osrm.org/">OSRM</a>', maxZoom: 19 }).addTo(map);
 // ── State
 let busMarker  = null, accCircle = null, trailLine = null;
 let trailPts   = [], totalDist = 0, lastLL = null;
 let startTime  = null, ticker = null;
 let following  = true, showTrail = true, showAcc = true;
+let roadTrailQueue = Promise.resolve();
+
+function hav(a, b) {
+    const R = 6371000, dLat = (b.lat - a.lat) * Math.PI / 180, dLng = (b.lng - a.lng) * Math.PI / 180;
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+/** Driving route on roads between two GPS fixes (OSRM public demo — fair-use, not for heavy production). */
+async function roadGeometryBetween(from, to) {
+    const d = hav(from, to);
+    if (d < 45) return [[to.lat, to.lng]];
+    if (d > 350000) return [[to.lat, to.lng]];
+    const url = 'https://router.project-osrm.org/route/v1/driving/' +
+        from.lng + ',' + from.lat + ';' + to.lng + ',' + to.lat +
+        '?overview=full&geometries=geojson';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('osrm');
+    const data = await res.json();
+    const coords = data.routes && data.routes[0] && data.routes[0].geometry && data.routes[0].geometry.coordinates;
+    if (!coords || !coords.length) throw new Error('geom');
+    return coords.map(c => [c[1], c[0]]);
+}
+
+function mergeRoadSegmentIntoTrail(segment) {
+    if (!segment.length) return;
+    let i = 0;
+    if (trailPts.length) {
+        const last = trailPts[trailPts.length - 1];
+        const first = segment[0];
+        if (hav({ lat: last[0], lng: last[1] }, { lat: first[0], lng: first[1] }) < 12) i = 1;
+    }
+    for (; i < segment.length; i++) trailPts.push(segment[i]);
+    document.getElementById('jPts').textContent = trailPts.length;
+}
+
+function enqueueRoadTrail(from, to) {
+    roadTrailQueue = roadTrailQueue.then(() =>
+        roadGeometryBetween(from, to).then(seg => {
+            mergeRoadSegmentIntoTrail(seg);
+            if (showTrail) updateTrail();
+        }).catch(() => {
+            trailPts.push([to.lat, to.lng]);
+            document.getElementById('jPts').textContent = trailPts.length;
+            if (showTrail) updateTrail();
+        })
+    ).catch(() => {
+        trailPts.push([to.lat, to.lng]);
+        document.getElementById('jPts').textContent = trailPts.length;
+        if (showTrail) updateTrail();
+    });
+}
+
+function refineLoadedTrailToRoadIfTwoPoints() {
+    if (trailPts.length !== 2) return;
+    const a = { lat: trailPts[0][0], lng: trailPts[0][1] };
+    const b = { lat: trailPts[1][0], lng: trailPts[1][1] };
+    roadTrailQueue = roadTrailQueue.then(() =>
+        roadGeometryBetween(a, b).then(seg => {
+            if (seg.length >= 2) {
+                trailPts = seg;
+                document.getElementById('jPts').textContent = trailPts.length;
+                if (showTrail) updateTrail();
+            }
+        }).catch(() => {})
+    );
+}
 
 // ── Load existing state (for page reload)
 fetch('/api/status').then(r=>r.json()).then(s=>{
@@ -206,6 +274,7 @@ fetch('/api/status').then(r=>r.json()).then(s=>{
     if (s.trail && s.trail.length) {
       trailPts = s.trail.map(p => [p.lat, p.lng]);
       updateTrail();
+      if (trailPts.length === 2) refineLoadedTrailToRoadIfTwoPoints();
     }
     updatePanel(f);
     setBadge('connected', 'DRIVER LIVE');
@@ -227,6 +296,124 @@ new BusTrackWS({
 });
 
 //location handler
+function onLocation(d) {
+  if (!startTime) {
+    startTime = Date.now();
+    ticker = setInterval(() => {
+      document.getElementById('jTime').textContent = Math.floor((Date.now()-startTime)/1000);
+    }, 1000);
+    document.getElementById('overlay').classList.add('gone');
+    document.getElementById('side').style.display = 'flex';
+    setBadge('connected','DRIVER LIVE');
+    showToast('🚌 Bus GPS connected!','success');
+    if (d.trail && d.trail.length) {
+      trailPts = d.trail.map(p => [p.lat, p.lng]);
+      updateTrail();
+      if (trailPts.length === 2) refineLoadedTrailToRoadIfTwoPoints();
+    }
+  }
+  placeBus(d.lat,d.lng,d.heading);
+  if(showAcc) updateAccCircle(d.lat,d.lng,d.accuracy);
+  if (following) map.panTo([d.lat, d.lng], { animate:true, duration:.5 });
+
+  const prev = lastLL;
+  if (prev) {
+    const dist = hav(prev, { lat: d.lat, lng: d.lng });
+    if (dist > 2) {
+      totalDist += dist;
+      enqueueRoadTrail(prev, { lat: d.lat, lng: d.lng });
+    }
+  } else if (!trailPts.length) {
+    trailPts.push([d.lat, d.lng]);
+    if (showTrail) updateTrail();
+  }
+  lastLL = {lat:d.lat, lng:d.lng};
+
+
+  updatePanel(d);
+  document.getElementById('jDist').textContent =Math.round(totalDist);
+  document.getElementById('jPts').textContent = trailPts.length;
+}
+
+//bus marker
+function placeBus(lat,lng,heading){
+    const hdg = heading !=null && !isNaN(heading) ? heading:null;
+    const html =`<div class="bm">
+    <div class="bm-r1"></div><div class="bm-r2"></div>
+    ${hdg!=null?`<div class="bm-arr" style="transform:translateX(-50%) rotate(${hdg}deg)"></div>`:''}
+    <div class="bm-body">🚌</div>
+    <div class="bm-label">LIVE BUS</div>
+  </div>`;
+  const icon = L.divIcon({className:'',html,iconSize:[54,70],iconAnchor:[27,27]});
+  if (!busMarker) {
+    busMarker = L.marker([lat,lng],{icon,zIndexOffset:1000}).addTo(map)
+      .bindPopup(`<b style="color:#00e5ff;font-family:Syne,sans-serif">🚌 Live Bus</b><br>
+        <small style="color:#9e9e9e">Real GPS · Lat:${lat.toFixed(5)} Lng:${lng.toFixed(5)}</small>`);
+  } else {
+    busMarker.setLatLng([lat,lng]); busMarker.setIcon(icon);
+  }
+}
+
+function updateAccCircle(lat, lng, acc) {
+  if (!accCircle) {
+    accCircle = L.circle([lat,lng],{radius:acc,color:'#00e5ff',fillColor:'#00e5ff',fillOpacity:.05,weight:1,opacity:.4,dashArray:'6,4'}).addTo(map);
+  } else { accCircle.setLatLng([lat,lng]); accCircle.setRadius(acc); }
+}
+
+function updateTrail() {
+  if (!trailLine) {
+    trailLine = L.polyline(trailPts,{color:'#00e5ff',weight:3,opacity:.65}).addTo(map);
+  } else { trailLine.setLatLngs(trailPts); }
+}
+
+//panel
+function updatePanel(d) {
+  document.getElementById('iSpd').textContent  = d.speed != null ? (d.speed*3.6).toFixed(1) : '—';
+  document.getElementById('iAcc').textContent  = Math.round(d.accuracy);
+  document.getElementById('iHdg').textContent  = d.heading != null ? Math.round(d.heading) : '—';
+  document.getElementById('iFix').textContent  = d.fixCount || trailPts.length;
+  document.getElementById('cLat').textContent  = d.lat.toFixed(7) + '°';
+  document.getElementById('cLng').textContent  = d.lng.toFixed(7) + '°';
+  document.getElementById('cAlt').textContent  = d.altitude != null ? Math.round(d.altitude)+'m' : '—';
+  const t = d.timestamp != null ? d.timestamp : d.timeStamp;
+  document.getElementById('cTime').textContent = t != null ? new Date(t).toLocaleTimeString() : '—';
+}
+//controls 
+// ── Controls ───────────────────────────────────────────────
+function setFollow(v) {
+  following = v;
+  document.getElementById('btnFollow').classList.toggle('on',v);
+  document.getElementById('btnFree').classList.toggle('on',!v);
+}
+function toggleTrail() {
+  showTrail = !showTrail;
+  document.getElementById('btnTrail').classList.toggle('on',showTrail);
+  if (trailLine) { showTrail ? map.addLayer(trailLine) : map.removeLayer(trailLine); }
+}
+function toggleAcc() {
+  showAcc = !showAcc;
+  document.getElementById('btnAcc').classList.toggle('on',showAcc);
+  if (accCircle) { showAcc ? map.addLayer(accCircle) : map.removeLayer(accCircle); }
+}
+
+//badge / toast
+function setBadge(cls, text) {
+  const b = document.getElementById('wsBadge');
+  b.className = 'ws-badge ' + cls;
+  document.getElementById('wsText').textContent = text;
+}
+
+let tt;
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// clock
+setInterval(()=>{
+  document.getElementById('navTime').textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+},1000);
 </script>
 </body>
 </html>
