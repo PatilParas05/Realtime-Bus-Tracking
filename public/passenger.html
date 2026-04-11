@@ -201,8 +201,32 @@ fetch('/api/status').then(r=>r.json()).then(s=>{
         const f=s.latestFix;
         document.getElementById('overlay').classList.add('gone');
         document.getElementById('side').style.display='flex';
+        placeBus(f.lat, f.lng, f.heading);
+    map.setView([f.lat, f.lng], 15);
+    if (s.trail && s.trail.length) {
+      trailPts = s.trail.map(p => [p.lat, p.lng]);
+      updateTrail();
     }
-})
+    updatePanel(f);
+    setBadge('connected', 'DRIVER LIVE');
+    showToast('🚌 Bus already broadcasting!', 'success');
+  }
+}).catch(() => {});
+
+//websocket
+new BusTrackWS({
+  role: 'passenger',
+  onOpen() { setBadge('connected','SERVER CONNECTED'); },
+  onClose() { setBadge('offline','Server offline'); },
+  onMessage(d) {
+    if (d.type === 'location')      onLocation(d);
+    if (d.type === 'driver_online') { showToast('🚌 Bus driver connected!','success'); setBadge('connected','DRIVER LIVE'); }
+    if (d.type === 'driver_offline'){ showToast('🔴 Driver disconnected','error'); setBadge('connecting','Waiting for Bus'); }
+    if (d.type === 'server_info')   { if (d.driverConnected) setBadge('connected','DRIVER LIVE'); }
+  }
+});
+
+//location handler
 </script>
 </body>
 </html>
