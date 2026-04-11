@@ -216,6 +216,49 @@
                     }
                 });
             }
+            // GPS tracking
+            function toggleTracking(){
+                tracking ? stopTracking():StartTracking();
+            }
+            function startTracking(){
+                if(!navigator.geolocation){showToast('Geolocation not supported','error');return;}
+
+                documnet.getElementById('mainBtn').disabled=true;
+                setRing('🔍', '#ffab40', 'ACQUIRING…', 'Waiting for GPS fix');
+                log('Requesting GPS permission from browser…');
+
+                watchId = navigator.geolocation.watchPosition(onFix,onGPSError,{
+                    enableHighAccuracy:true,
+                    maximumAge:0,
+                    timeout:20000
+                });
+            }
+            function stopTracking(){
+                if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+                tracking = false;
+                document.getElementById('mainBtn').className = 'btn btn-green';
+                document.getElementById('btnIcon').className = 'fa-solid fa-satellite-dish';
+                document.getElementById('btnText').textContent = 'START GPS TRACKING';
+                document.getElementById('mainBtn').disabled = false;
+                document.getElementById('bcastBar').classList.remove('on');
+                etRing('📡', 'var(--muted)', 'OFFLINE', 'Tracking stopped');
+                if (ws) ws.send({ type: 'driver_stop' });
+                log('Tracking stopped.');
+            }
+            function onFix(pos){
+                const c = pos.coords;
+
+                if(!tracking){
+                    tracking = true;
+                    document.getElementById('mainBtn').className = 'btn btn-red';
+                    document.getElementById('btnIcon').className = 'fa-solid fa-stop';
+                    document.getElementById('btnText').textContent = 'STOP TRACKING';
+                    document.getElementById('mainBtn').disabled = false;
+                    document.getElementById('bcastBar').classList.add('on');
+                    log('✅ GPS fix acquired — streaming to server');
+                    showToast('GPS streaming started!', 'success');
+                }
+            }
             
        
         </script>
