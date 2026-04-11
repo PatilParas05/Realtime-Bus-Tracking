@@ -258,8 +258,89 @@
                     log('✅ GPS fix acquired — streaming to server');
                     showToast('GPS streaming started!', 'success');
                 }
+
+                //quality ring fill (accuracy -> pct: 0m = 100%, 100m = 0%)
+                const pct = Math.max(0,Math.min(100,100 - (c.accuracy / 80) * 100));
+                setRingFill(pct);
+                setRing('🛰️', 'var(--green)', 'LIVE', `±${Math.round(c.accuracy)}m accuracy`);
+                // Update stats
+                document.getElementById('spdVal').textContent = c.speed != null ? (c.speed * 3.6).toFixed(1) : '—';
+                document.getElementById('accVal').textContent = Math.round(c.accuracy);
+                document.getElementById('hdgVal').textContent = c.heading != null ? Math.round(c.heading) : '—';
+
+                // Coordinates
+                document.getElementById('cLat').textContent  = c.latitude.toFixed(7)  + '°';
+                document.getElementById('cLng').textContent  = c.longitude.toFixed(7) + '°';
+                document.getElementById('cAlt').textContent  = c.altitude != null ? Math.round(c.altitude) + ' m' : '—';
+                document.getElementById('cTime').textContent = new Date(pos.timestamp).toLocaleTimeString();
+                
+                //quality badge
+                let qCls ='q-good',qTxt='Excellent';
+                if (c.accuracy > 20 && c.accuracy <= 50) { qCls = 'q-ok';   qTxt = 'Good'; }
+                if (c.accuracy > 50) { qCls = 'q-poor'; qTxt = 'Poor'; }
+                document.getElementById('cQuality').innerHTML =
+                    `<span class="q-badge ${qCls}">● ${qTxt} (±${Math.round(c.accuracy)}m)</span>`;
+
+            //sned to server via websocket
+            if(ws){
+                ws.send({
+                    type:      'location',
+                    lat:       c.latitude,
+                    lng:       c.longitude,
+                    speed:     c.speed,
+                    heading:   c.heading,
+                    accuracy:  c.accuracy,
+                    altitude:  c.altitude,
+                    timestamp: pos.timestamp
+                });
             }
-            
+            }
+            function onGPSError(err) {
+            const msgs = ['','Permission denied — allow location in browser settings.','Position unavailable — try outdoors.','GPS timed out — retrying…'];
+            const msg = msgs[err.code] || err.message;
+            setRing('⚠️', 'var(--red)', 'GPS ERROR', msg);
+            showToast('❌ ' + msg, 'error');
+            log('GPS ERROR: ' + msg);
+            document.getElementById('mainBtn').disabled = false;
+            }
+            //helpers
+            function setRing(emoji, color, status, sub) {
+            document.getElementById('ringEmoji').textContent  = emoji;
+            document.getElementById('ringStatus').textContent = status;
+            document.getElementById('ringStatus').style.color = color;
+            document.getElementById('ringSub').textContent    = sub;
+            }
+            function setRingFill(pct){
+                const c = 2 * Math.PI * 95;
+                document.getElementById('ringProg').style.strokeDashoffset = c * (1 - pct / 100);
+            }
+            let logCount =0;
+            function log(msg){
+                const body = document.getElementById('logBody');
+                const div  = document.createElement('div');
+                div.className = 'log-line-fresh';
+                div.innerText =  `<span class="ts">${new Date().toLocaleTimeString()}</span>${msg}`;
+                body.insertBefore(div,body.firstChild);
+                setTimeout(() => div.classList.remove('fresh'), 2000);
+                while (body.children.length > 25) body.removeChild(body.lastChild);
+            }
+            let toastTimer;
+            function showToast(msg, type = 'info') {
+                const t = document.getElementById('toast');
+                t.textContent = msg; t.className = `toast ${type} show`;
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+                }
+
+                // Clock
+            setInterval(() => {
+                document.getElementById('navTime').textContent =
+                    new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+                }, 1000);
+
+                // Boot
+            connectWS();
+                log('Driver app loaded. Waiting for GPS permission…');
        
         </script>
     </div>
