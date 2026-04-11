@@ -2,9 +2,6 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
-const { connected } = require('process');
-const { type } = require('os');
-const { timeStamp, count } = require('console');
 
 const app = express();
 const server = http.createServer(app);
@@ -42,9 +39,9 @@ app.get('/api/trail',(req,res)=>{
 });
 
 //websocket handler
-wss.on('conection',(ws,req)=>{
+wss.on('connection',(ws,req)=>{
     //read role from query param:?role=driver or ?role=passenger
-    const url=new URL(req.url,'http://localhost:${PORT}');
+    const url=new URL(req.url,`http://localhost:${PORT}`);
     const role=url.searchParams.get('role') || 'passenger';
     const busId=url.searchParams.get('busId') || 'BUS-001';
 
@@ -52,7 +49,7 @@ wss.on('conection',(ws,req)=>{
     ws.busId=busId;
     ws.isAlive=true;
 
-    console.log('[WS] ${role.toUpperCase()} connected (total clients: ${wss.clients.size})');
+    console.log(`[WS] ${role.toUpperCase()} connected (total clients: ${wss.clients.size})`);
 
     if(role==='driver'){
         driverConnected=true;
@@ -64,15 +61,15 @@ wss.on('conection',(ws,req)=>{
         safeSend(ws,{type:'driver_ack',message:'connected to server. GPS broadcast active.',busId});
 
         //tell all passengers driver come online
-        borascast({type:'driver_online',busId},'passenger');
+        broadcast({type:'driver_online',busId},'passenger');
         updatePassengerCount();
     }
-    if(roll === 'passenger'){
-        passengerCount = CountRole('passenger');
+    if(role === 'passenger'){
+        passengerCount = countRole('passenger');
 
-        //send lartest know fix immediately so map isnt blank
+        //send latest known fix immediately so map isnt blank
         if(latestFix){
-            safeSend(ws,{type:'location',...lartestFix,trail:fixHistory.slice(-50)});
+            safeSend(ws,{type:'location',...latestFix,trail:fixHistory.slice(-50)});
         }
         safeSend(ws,{
             type:'server_info',
@@ -82,7 +79,7 @@ wss.on('conection',(ws,req)=>{
         });
 
         //tell driver passenger count updated
-        broadcastToDrivers({type:'passenger_count',count:CountRole('passenger')+1});
+        broadcastToDrivers({type:'passenger_count',count:countRole('passenger')});
     }
 
 //message handler
@@ -100,7 +97,7 @@ ws.on('message',(raw)=>{
             heading:msg.heading,
             accuracy:msg.accuracy,
             altitude:msg.altitude,
-            timeStamp:msg.timeStamp || Date.now(),
+            timeStamp:msg.timestamp || msg.timeStamp || Date.now(),
             fixCount,
             busId:ws.busId
         };
@@ -113,10 +110,10 @@ ws.on('message',(raw)=>{
         broadcast(payload,'passenger');
 
         //ack back to driver
-        safeSend(ws,{type:'ack',fixCount,passengers:CountRole('passenger')});
+        safeSend(ws,{type:'ack',fixCount,passengers:countRole('passenger')});
 
         if(fixCount %10 ===0){
-            console.log(`[GPS Fix #${fixCount} lat:${msg.lat.toFixed(5)} lng:${msg.lng.toFixed(5)} passengers:${countRole('passengers')}]`);
+            console.log(`[GPS Fix #${fixCount} lat:${msg.lat.toFixed(5)} lng:${msg.lng.toFixed(5)} passengers:${countRole('passenger')}]`);
         }
     }
     if(msg.type === 'ping'){
@@ -125,7 +122,7 @@ ws.on('message',(raw)=>{
 });
     //disconnect
     ws.on('close',()=>{
-        console.log(`[WS] ${ws.role.toUpperCase()}disconnected`);
+        console.log(`[WS] ${ws.role.toUpperCase()} disconnected`);
         if(ws.role === 'driver'){
             driverConnected= false
             broadcast({type:'driver_offline'},'passenger');
@@ -199,3 +196,5 @@ function startServer(port) {
         console.log('\n------------------------------------------------');
     });
 }
+
+startServer(PORT);

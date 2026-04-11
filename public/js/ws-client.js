@@ -52,7 +52,8 @@ class BusTrackWS{
          clearTimeout(this.reconnectTimer);
          if(this.ws)this.ws.close();    
     }
-get connect(){
-    return this.ws && this.ws.readyState === WebSocket.OPEN;
-}
+
+    get connected() {
+        return !!(this.ws && this.ws.readyState === WebSocket.OPEN);
+    }
 }
