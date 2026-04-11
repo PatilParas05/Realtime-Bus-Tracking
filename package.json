@@ -1,11 +1,12 @@
 {
   "name": "bustrack",
   "version": "1.0.0",
-  "description": "",
+  "description": "Real-Time Bus Tracking System — Node.js + WebSocket Backend",
   "main": "server/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js"
   },
   "keywords": [],
   "author": "",
